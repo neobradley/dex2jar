@@ -18,6 +18,7 @@ package com.googlecode.dex2jar.test;
 import com.android.dx.cf.direct.DirectClassFile;
 import com.android.dx.cf.direct.StdAttributeFactory;
 import com.android.dx.cf.iface.ParseException;
+import com.android.dx.command.dexer.DxContext;
 import com.android.dx.dex.DexOptions;
 import com.android.dx.dex.cf.CfOptions;
 import com.android.dx.dex.cf.CfTranslator;
@@ -148,18 +149,13 @@ public abstract class TestUtils {
     public static List<Path> listTestDexFiles() {
 
         Class<?> testClass = TestUtils.class;
-        URL url = testClass.getResource("/" + testClass.getName().replace('.', '/') + ".class");
+        URL url = testClass.getResource("/dexes/i_jetty.dex");
         Assert.assertNotNull(url);
 
         final String fileStr = url.getFile();
         Assert.assertNotNull(fileStr);
-        String dirx = fileStr.substring(0, fileStr.length() - testClass.getName().length() - ".class".length());
 
-        System.out.println("dirx is " + dirx);
-
-        File file = new File(dirx, "dexes");
-
-        return listPath(file, ".apk", ".dex", ".zip");
+        return listPath(new File(fileStr).getParentFile(), ".apk", ".dex", ".zip");
     }
 
     public static List<Path> listPath(File file, final String... exts) {
@@ -339,12 +335,15 @@ public abstract class TestUtils {
         CfOptions cfOptions = new CfOptions();
         cfOptions.strictNameCheck = false;
         DexOptions dexOptions = new DexOptions();
+        if (fileNode != null && fileNode.dexVersion >= DexConstants.DEX_037) {
+            dexOptions.minSdkVersion = 26;
+        }
 
         DirectClassFile dcf = new DirectClassFile(data, rca.getClassName() + ".class", true);
         dcf.setAttributeFactory(new StdAttributeFactory());
         com.android.dx.dex.file.DexFile dxFile = new com.android.dx.dex.file.DexFile(dexOptions);
         try {
-            CfTranslator.translate(dcf, data, cfOptions, dexOptions, dxFile);
+            CfTranslator.translate(new DxContext(), dcf, data, cfOptions, dexOptions, dxFile);
         } catch (ParseException e) {
             if ("MethodHandle not supported".equals(e.getMessage())) {
                 e.printStackTrace();

@@ -27,6 +27,8 @@ import com.googlecode.d2j.node.DexAnnotationNode;
 import com.googlecode.d2j.util.Mutf8;
 import com.googlecode.d2j.visitors.*;
 
+import static com.googlecode.d2j.DexConstants.*;
+
 /**
  * Open and read a dex file.this is the entrance of dex-reader. to read a dex/odex, use the following code:
  * 
@@ -68,6 +70,11 @@ public class DexFileReader implements BaseDexFileReader {
      * keep clinit method when {@link #SKIP_DEBUG}
      */
     public static final int KEEP_CLINIT = 1 << 7;
+
+    /**
+     * keep clinit method when {@link #SKIP_DEBUG}
+     */
+    public static final int SKIP_EXCEPTION = 1 << 8;
 
     // private static final int REVERSE_ENDIAN_CONSTANT = 0x78563412;
 
@@ -613,6 +620,7 @@ public class DexFileReader implements BaseDexFileReader {
      */
     @Override
     public void accept(DexFileVisitor dv, int config) {
+        dv.visitDexFileVersion(this.dex_version);
         for (int cid = 0; cid < class_defs_size; cid++) {
             accept(dv, cid, config);
         }
@@ -747,6 +755,9 @@ public class DexFileReader implements BaseDexFileReader {
 
         case MethodHandle.INVOKE_INSTANCE:
         case MethodHandle.INVOKE_STATIC:
+        case MethodHandle.INVOKE_CONSTRUCTOR:
+        case MethodHandle.INVOKE_DIRECT:
+        case MethodHandle.INVOKE_INTERFACE:
             return new MethodHandle(method_handle_type, getMethod(field_or_method_id));
         default:
             throw new RuntimeException();
@@ -1384,7 +1395,9 @@ public class DexFileReader implements BaseDexFileReader {
             if ((insns & 0x01) != 0) {// skip padding
                 in.getShort();
             }
-            findTryCatch(in, dcv, tries_size, insns, labelsMap, handlers);
+            if (0 == (config & SKIP_EXCEPTION)) {
+                findTryCatch(in, dcv, tries_size, insns, labelsMap, handlers);
+            }
         }
         // 处理debug信息
         if (debug_info_off != 0 && (0 == (config & SKIP_DEBUG))) {
